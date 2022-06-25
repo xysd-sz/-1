@@ -152,7 +152,7 @@ int sys_setup(void * BIOS)
 		brelse(bh);
 	}
 	if (NR_HD)
-		printk("Partition table%s ok.\n\r",(NR_HD>1)?"s":"");
+		printk("Partition table%s ok<suzhao>.\n\r",(NR_HD>1)?"s":"");
 	rd_load();
 	mount_root();
 	return (0);
