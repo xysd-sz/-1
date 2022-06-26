@@ -70,6 +70,7 @@ int sys_signal(int signum, long handler, long restorer)
 	return handler;
 }
 
+
 int sys_sigaction(int signum, const struct sigaction * action,
 	struct sigaction * oldaction)
 {
