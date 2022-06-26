@@ -25,10 +25,10 @@ __always_inline _syscall0(int,fork)
 __always_inline _syscall0(int,pause)
 __always_inline _syscall1(int,setup,void *,BIOS)
 __always_inline _syscall0(int,sync)
-__always_inline _syscall3(int, execve2, const char*, path, char**, argv, char**, envp)
+/*__always_inline _syscall3(int, execve2, const char*, path, char**, argv, char**, envp)
 __always_inline _syscall3(unsigned int, getdents, unsigned int, fd, struct linux_dirent*, dirp, unsigned int, count)
 __always_inline _syscall1(unsigned int, sleep, unsigned int, seconds)
-__always_inline _syscall2(unsigned int, getcwd, char*, buf, size_t, size)
+__always_inline _syscall2(unsigned int, getcwd, char*, buf, size_t, size)*/
 #include <linux/tty.h>
 #include <linux/sched.h>
 #include <linux/head.h>
@@ -210,11 +210,6 @@ void init(void)
 		sync();
 	}
 	_exit(0);	/* NOTE! _exit, not exit() */
-}
-//execve2
-int sys_execve2(const char* path, char* argv[], char* envp[])
-{
-	return 1;
 }
 //sleep 
 int sys_sleep(unsigned int seconds)

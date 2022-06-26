@@ -1,9 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\init",
     "\\kernel"
   ],
-  "SelectedNode": "\\init\\main.c",
+  "SelectedNode": "\\kernel\\sys.c",
   "PreviewInSolutionExplorer": false
 }
