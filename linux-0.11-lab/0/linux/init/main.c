@@ -219,5 +219,12 @@ int sys_execve2(const char* path, char* argv[], char* envp[])
 //sleep 
 int sys_sleep(unsigned int seconds)
 {
+	sys_signal(SIGALRM, SIG_IGN);
+	sys_alarm(seconds);
+	sys_pause();
 	return 0;
+}
+void sys_suzhao()
+{
+
 }

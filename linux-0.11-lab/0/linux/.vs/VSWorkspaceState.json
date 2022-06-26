@@ -1,8 +1,9 @@
 {
   "ExpandedNodes": [
     "",
+    "\\init",
     "\\kernel"
   ],
-  "SelectedNode": "\\kernel\\system_call.s",
+  "SelectedNode": "\\init\\main.c",
   "PreviewInSolutionExplorer": false
 }
