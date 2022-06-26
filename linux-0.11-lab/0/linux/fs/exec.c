@@ -357,25 +357,26 @@ exec_error1:
 		free_page(page[i]);
 	return(retval);
 }
+
 extern ck_do_no_page();
-int do_execve2(unsigned long* eip, long tmp, char* filename,
-	char** argv, char** envp)
+int do_execve2(unsigned long * eip,long tmp,char * filename,
+	char ** argv, char ** envp)
 {
-	struct m_inode* inode;
-	struct buffer_head* bh;
+	struct m_inode * inode;
+	struct buffer_head * bh;
 	struct exec ex;
 	unsigned long page[MAX_ARG_PAGES];
-	int i, argc, envc;
+	int i,argc,envc;
 	int e_uid, e_gid;
 	int retval;
 	int sh_bang = 0;
-	unsigned long p = PAGE_SIZE * MAX_ARG_PAGES - 4;
+	unsigned long p=PAGE_SIZE*MAX_ARG_PAGES-4;
 
 	if ((0xffff & eip[1]) != 0x000f)
 		panic("execve called from supervisor mode");
-	for (i = 0; i < MAX_ARG_PAGES; i++)	/* clear page-table */
-		page[i] = 0;
-	if (!(inode = namei(filename)))		/* get executables inode */
+	for (i=0 ; i<MAX_ARG_PAGES ; i++)	/* clear page-table */
+		page[i]=0;
+	if (!(inode=namei(filename)))		/* get executables inode */
 		return -ENOENT;
 	argc = count(argv);
 	envc = count(envp);
@@ -393,25 +394,25 @@ restart_interp:
 	else if (current->egid == inode->i_gid)
 		i >>= 3;
 	if (!(i & 1) &&
-		!((inode->i_mode & 0111) && suser())) {
+	    !((inode->i_mode & 0111) && suser())) {
 		retval = -ENOEXEC;
 		goto exec_error2;
 	}
-	if (!(bh = bread(inode->i_dev, inode->i_zone[0]))) {
+	if (!(bh = bread(inode->i_dev,inode->i_zone[0]))) {
 		retval = -EACCES;
 		goto exec_error2;
 	}
-	ex = *((struct exec*)bh->b_data);	/* read exec-header */
+	ex = *((struct exec *) bh->b_data);	/* read exec-header */
 	if ((bh->b_data[0] == '#') && (bh->b_data[1] == '!') && (!sh_bang)) {
 		/*
 		 * This section does the #! interpretation.
 		 * Sorta complicated, but hopefully it will work.  -TYT
 		 */
 
-		char buf[1023], * cp, * interp, * i_name, * i_arg;
+		char buf[1023], *cp, *interp, *i_name, *i_arg;
 		unsigned long old_fs;
 
-		strncpy(buf, bh->b_data + 2, 1022);
+		strncpy(buf, bh->b_data+2, 1022);
 		brelse(bh);
 		iput(inode);
 		buf[1022] = '\0';
@@ -425,9 +426,9 @@ restart_interp:
 		}
 		interp = i_name = cp;
 		i_arg = 0;
-		for (; *cp && (*cp != ' ') && (*cp != '\t'); cp++) {
-			if (*cp == '/')
-				i_name = cp + 1;
+		for ( ; *cp && (*cp != ' ') && (*cp != '\t'); cp++) {
+ 			if (*cp == '/')
+				i_name = cp+1;
 		}
 		if (*cp) {
 			*cp++ = '\0';
@@ -439,7 +440,7 @@ restart_interp:
 		 */
 		if (sh_bang++ == 0) {
 			p = copy_strings(envc, envp, page, p, 0);
-			p = copy_strings(--argc, argv + 1, page, p, 0);
+			p = copy_strings(--argc, argv+1, page, p, 0);
 		}
 		/*
 		 * Splice in (1) the interpreter's name for argv[0]
@@ -466,7 +467,7 @@ restart_interp:
 		 */
 		old_fs = get_fs();
 		set_fs(get_ds());
-		if (!(inode = namei(interp))) { /* get executables inode */
+		if (!(inode=namei(interp))) { /* get executables inode */
 			set_fs(old_fs);
 			retval = -ENOENT;
 			goto exec_error1;
@@ -476,8 +477,8 @@ restart_interp:
 	}
 	brelse(bh);
 	if (N_MAGIC(ex) != ZMAGIC || ex.a_trsize || ex.a_drsize ||
-		ex.a_text + ex.a_data + ex.a_bss > 0x3000000 ||
-		inode->i_size < ex.a_text + ex.a_data + ex.a_syms + N_TXTOFF(ex)) {
+		ex.a_text+ex.a_data+ex.a_bss>0x3000000 ||
+		inode->i_size < ex.a_text+ex.a_data+ex.a_syms+N_TXTOFF(ex)) {
 		retval = -ENOEXEC;
 		goto exec_error2;
 	}
@@ -487,41 +488,42 @@ restart_interp:
 		goto exec_error2;
 	}
 	if (!sh_bang) {
-		p = copy_strings(envc, envp, page, p, 0);
-		p = copy_strings(argc, argv, page, p, 0);
+		p = copy_strings(envc,envp,page,p,0);
+		p = copy_strings(argc,argv,page,p,0);
 		if (!p) {
 			retval = -ENOMEM;
 			goto exec_error2;
 		}
 	}
-	/* OK, This is the point of no return */
+/* OK, This is the point of no return */
 	if (current->executable)
 		iput(current->executable);
 	current->executable = inode;
-	for (i = 0; i < 32; i++)
+	for (i=0 ; i<32 ; i++)
 		current->sigaction[i].sa_handler = NULL;
-	for (i = 0; i < NR_OPEN; i++)
-		if ((current->close_on_exec >> i) & 1)
+	for (i=0 ; i<NR_OPEN ; i++)
+		if ((current->close_on_exec>>i)&1)
 			sys_close(i);
 	current->close_on_exec = 0;
-	free_page_tables(get_base(current->ldt[1]), get_limit(0x0f));
-	free_page_tables(get_base(current->ldt[2]), get_limit(0x17));
+	free_page_tables(get_base(current->ldt[1]),get_limit(0x0f));
+	free_page_tables(get_base(current->ldt[2]),get_limit(0x17));
 	if (last_task_used_math == current)
 		last_task_used_math = NULL;
 	current->used_math = 0;
-	p += change_ldt(ex.a_text, page) - MAX_ARG_PAGES * PAGE_SIZE;
-	p = (unsigned long)create_tables((char*)p, argc, envc);
+	p += change_ldt(ex.a_text,page)-MAX_ARG_PAGES*PAGE_SIZE;
+	p = (unsigned long) create_tables((char *)p,argc,envc);
 	current->brk = ex.a_bss +
 		(current->end_data = ex.a_data +
-			(current->end_code = ex.a_text));
+		(current->end_code = ex.a_text));
 	current->start_stack = p & 0xfffff000;
 	current->euid = e_uid;
 	current->egid = e_gid;
-	i = ex.a_text + ex.a_data;
-	while (i & 0xfff)
-		put_fs_byte(0, (char*)(i++));
+	i = ex.a_text+ex.a_data;
+	while (i&0xfff)
+		put_fs_byte(0,(char *) (i++));
 	eip[0] = ex.a_entry;		/* eip, magic happens :-) */
 	eip[3] = p;			/* stack pointer */
+	// 提前分配页面
 	unsigned long now_addr = current->start_code;
 	unsigned long last_page = (current->start_code + current->brk - 1) & 0xfffff000;
 	do {
@@ -532,7 +534,7 @@ restart_interp:
 exec_error2:
 	iput(inode);
 exec_error1:
-	for (i = 0; i < MAX_ARG_PAGES; i++)
+	for (i=0 ; i<MAX_ARG_PAGES ; i++)
 		free_page(page[i]);
 	return(retval);
 }
