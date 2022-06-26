@@ -216,21 +216,7 @@ void init(void)
 	_exit(0);	/* NOTE! _exit, not exit() */
 }
 
-/* start four system calls sys_execve2, sys_getdents, sys_sleep, sys_getcwd */
 
-/*
-int sys_execve2(const char *file,char **argv,char **envp)
-{
-	unsigned long Eip[5];
-	Eip[0]=0;
-	Eip[1]=0x000f;
-	Eip[2]=0;
-	Eip[3]=0;
-	long Tmp=0;
-	do_execve(&Eip,Tmp,file,argv,envp);
-	return 1;
-}
-*/
 
 struct linux_dirent{
 	long d_ino;
@@ -239,37 +225,31 @@ struct linux_dirent{
 	char d_name[];
 };
 
-int sys_getdents(unsigned int fd,struct linux_dirent *dirp,unsigned int count)
+int sys_getdents(unsigned int fd, struct linux_dirent* dirp, unsigned int count)
 {
-	/*	by gsf	    */
-	struct m_inode *gsf_m_inode;
-	struct buffer_head *gsf_buffer_head;
-	struct dir_entry *gsf_dir_entry;
-	struct linux_dirent gsf_linux_dir;
-	int i, j, res;
-	i = 0;
-	res = 0;
-	gsf_m_inode = current->filp[fd]->f_inode;
-	gsf_buffer_head = bread(gsf_m_inode->i_dev, gsf_m_inode->i_zone[0]);
-	gsf_dir_entry = (struct dir_entry *)gsf_buffer_head->b_data;
-	while (gsf_dir_entry[i].inode>0)
+	struct linux_dirent lastdirent;
+	struct m_inode* inode = current->filp[fd]->f_inode;//获取文件i节点
+	struct buffer_head* path_head = bread(inode->i_dev, inode->i_zone[0]);//同getcwd
+	struct dir_entry* path = (struct dir_entry*)path_head->b_data;//同getcwd
+	int ct = 0;
+	int i, j, k;
+	for (i = 0; i < 1024; i++)//每次循环输出一个目录项
 	{
-		if (res + sizeof(struct linux_dirent) > count)
-		    break;
-		gsf_linux_dir.d_ino = gsf_dir_entry[i].inode;
-		gsf_linux_dir.d_off = 0;
-		gsf_linux_dir.d_reclen = sizeof(struct linux_dirent);
-		for (j = 0; j < 14; j++)
-		{
-		    gsf_linux_dir.d_name[j] = gsf_dir_entry[i].name[j];
+		if (path->inode == 0 || (i + 1) * 24 > count)
+			break;
+		lastdirent.d_ino = path[i].inode;
+		for (j = 0; j < 14; j++)//将目前目录项名字保存在d_name中
+			lastdirent.d_name[j] = path[i].name[j];
+		lastdirent.d_off = 0;
+		lastdirent.d_reclen = 24;
+		for (k = 0; k < 24; k++) {
+			put_fs_byte(((char*)&lastdirent)[k], ((char*)dirp + ct));
+			ct++;
 		}
-		for(j = 0;j <sizeof(struct linux_dirent); j++){
-		    put_fs_byte(((char *)(&gsf_linux_dir))[j],(char *)dirp + res);
-		    res++;
-		}
-		i++;
 	}
-	return res;
+	if (ct == 24)
+		return 0;
+	return ct;
 }
 
 int sys_sleep(unsigned int seconds)
@@ -409,42 +389,54 @@ static struct buffer_head * find_same_inode(struct m_inode ** dir, struct dir_en
 	}
 	brelse(bh);
 	return NULL;
-}
-
-long sys_getcwd(char* buf,size_t size)
+}long sys_getcwd(char* buf, size_t size)
 {
-	char buf_name[BUF_MAX];
-	char *nowbuf; 
-	struct dir_entry * de;
-	struct dir_entry * det;
-	struct buffer_head * bh;
-	nowbuf = (char *)malloc(BUF_MAX * sizeof(char));
-	struct m_inode *now_inode = current->pwd;
-	int idev, inid, block;
-
-
-	int prev_inode_num = now_inode->i_num;
-	if (now_inode == current->root)
-		strcpy(nowbuf, "/");
-
-	while (now_inode != current->root) {
-		bh = find_father_dir(&now_inode, &det);
-		idev = now_inode->i_dev;
-		inid = det->inode;
-		now_inode = iget(idev, inid);
-		bh = find_same_inode(&now_inode, &de, prev_inode_num);
-		prev_inode_num = det->inode;
-		strcpy(buf_name, "/");
-		strcat(buf_name, de->name);
-		strcat(buf_name, nowbuf);
-		strcpy(nowbuf, buf_name);
+	struct m_inode* inode = current->pwd; // current->pwd当前目录索引节点
+	struct buffer_head* path_head = bread(current->root->i_dev, inode->i_zone[0]);
+	struct dir_entry* getpath = (struct dir_entry*)path_head->b_data; // 第一个目录项
+	unsigned short lst_inode;
+	struct m_inode* new_inode;
+	char* pathname[512]; // range;
+	char* ans;
+	int i = 0;
+	while (1) {
+		lst_inode = getpath->inode;
+		new_inode = iget(current->root->i_dev, (getpath + 1)->inode);//上级目录i节点
+		path_head = bread(current->root->i_dev, new_inode->i_zone[0]);
+		getpath = (struct dir_entry*)path_head->b_data;
+		int j = 1;
+		while (1) {//遍历上级目录寻找本级目录
+			if ((getpath + j)->inode == lst_inode)
+				break;
+			j++;
+		}
+		if (j == 1)//已经到根节点了
+			break;
+		pathname[i] = (getpath + j)->name;
+		i++;
 	}
-	int chars = size;
-	char *p1 = nowbuf, *p2 = buf;
-	++size;
-	while (size-- > 0)
-		put_fs_byte(*(p1++), p2++);
-	return (long)buf;
+	int count = 0;
+	i--;
+	int k;
+	if (i < 0)
+		return NULL;
+	while (i >= 0)
+	{
+		k = 0;
+		ans[count++] = '/';
+		while (pathname[i][k] != '\0')
+		{
+			ans[count] = pathname[i][k];
+			k++;
+			count++;
+		}
+		i--;
+	}
+	if (count < 0)
+		return NULL;
+	for (k = 0; k < count; k++)//输出
+		put_fs_byte(ans[k], buf + k);
+	return (long)(ans);
 }
 
 void sys_gsf()
